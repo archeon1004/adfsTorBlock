@@ -52,22 +52,23 @@ namespace adfsTorBlock
 
         public Task<ThrottleStatus> EvaluateRequest(ThreatDetectionLogger adfslogger, RequestContext requestContext)
         {
-            Debug.WriteLine("adfsTorBlock:EvaluateRequest: Enter");
-            Debug.WriteLine("adfsTorBlock:EvaluateRequest: Checking if plugin is enabled and Risk Evaluation is disabled");
+            Debug.WriteLine($"adfsTorBlock:EvaluateRequest:Enter");
+            Debug.WriteLine($"adfsTorBlock:EvaluateRequest:Request for '{requestContext.LocalEndPointAbsolutePath}'");
+            Debug.WriteLine($"adfsTorBlock:EvaluateRequest:Checking if plugin is enabled and Risk Evaluation is disabled");
             if (_config.Enabled == true && _config.EvaluateRisk == false)
             {
-                Debug.WriteLine("adfsTorBlock:EvaluateRequest: Plugin enabled");
-                Debug.WriteLine("adfsTorBlock:EvaluateRequest: Checking if audit mode is enabled is enabled");
+                Debug.WriteLine("adfsTorBlock:EvaluateRequest:Plugin enabled");
+                Debug.WriteLine("adfsTorBlock:EvaluateRequest:Checking if audit mode is enabled is enabled");
                 bool Block;
                 if (_config.AuditModeEnabled == true)
                 {
-                    Debug.WriteLine("adfsTorBlock:EvaluateRequest: Audit mode is enabled");
+                    Debug.WriteLine("adfsTorBlock:EvaluateRequest:Audit mode is enabled");
                     adfslogger.WriteAdminLogErrorMessage($"AUDIT MODE: Tor Block Audit Mode is enabled. Requests from Tor exit nodes will be allowed");
                     Block = false;
                 }
                 else
                 {
-                    Debug.WriteLine("adfsTorBlock:EvaluateRequest: Audit mode is disabled");
+                    Debug.WriteLine("adfsTorBlock:EvaluateRequest:Audit mode is disabled");
                     Block = true;
                 }
                 foreach (IPAddress ipAddress in requestContext.ClientIpAddresses)
@@ -108,12 +109,12 @@ namespace adfsTorBlock
             {
                 if(_config.EvaluateRisk == true)
                 {
-                    Debug.WriteLine($"adfsTorBlock: EvaluateRequest:Plugin is in Risk evaluation Mode. Request Passed through to Evaluate Post Authentication");
+                    Debug.WriteLine($"adfsTorBlock:EvaluateRequest:Plugin is in Risk evaluation Mode.");
                     return Task.FromResult(ThrottleStatus.Allow);
                 }
                 else
                 {
-                    Debug.WriteLine($"adfsTorBlock: EvaluateRequest:Plugin is not enabled");
+                    Debug.WriteLine($"adfsTorBlock:EvaluateRequest:Plugin is not enabled");
                     return Task.FromResult(ThrottleStatus.NotEvaluated);
                 }
             }
@@ -122,22 +123,23 @@ namespace adfsTorBlock
 
         Task<RiskScore> IPostAuthenticationThreatDetectionModule.EvaluatePostAuthentication(ThreatDetectionLogger adfslogger, RequestContext requestContext, SecurityContext securityContext, ProtocolContext protocolContext, AuthenticationResult authenticationResult, IList<Claim> additionalClams)
         {
-            Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication: Enter");
-            Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication: Checking if plugin and risk evaluation is enabled");
+            Debug.WriteLine($"adfsTorBlock:EvaluatePostAuthentication:Enter");
+            Debug.WriteLine($"adfsTorBlock:EvaluatePostAuthentication:Request for '{requestContext.LocalEndPointAbsolutePath}'");
+            Debug.WriteLine($"adfsTorBlock:EvaluatePostAuthentication:Checking if plugin and risk evaluation is enabled");
             if (_config.Enabled == true && _config.EvaluateRisk == true)
             {
-                Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication: Plugin and Risk Evaluation enabled");
-                Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication: Checking if audit mode is enabled is enabled");
+                Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication:Plugin and Risk Evaluation enabled");
+                Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication:Checking if audit mode is enabled is enabled");
                 bool EvaluateRisk;
                 if (_config.AuditModeEnabled == true)
                 {
-                    Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication: Audit mode is enabled");
+                    Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication:Audit mode is enabled");
                     adfslogger.WriteAdminLogErrorMessage($"\n\nAUDIT MODE: Tor Block Audit Mode is enabled. RiskScore of reuqests from Tor exit nodes won't be evaluated");
                     EvaluateRisk = false;
                 }
                 else
                 {
-                    Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication: Audit mode is disabled");
+                    Debug.WriteLine("adfsTorBlock:EvaluatePostAuthentication:Audit mode is disabled");
                     EvaluateRisk = true;
                 }
                 foreach (IPAddress ipAddress in requestContext.ClientIpAddresses)
@@ -145,6 +147,7 @@ namespace adfsTorBlock
                     if (TorModule.IsTorExitNode(ipAddress))
                     {
                         Debug.WriteLine($"adfsTorBlock:EvaluatePostAuthentication:'{ipAddress}' is from Tor network");
+                        adfslogger.WriteAuditMessage($"Icoming request IP address '{ipAddress}' discovered to be from Tor Network");
                         string detailsMessage = $"\n\nRequest from '{ipAddress}' has been found to be from Tor network. Risk will be set to High.\n\n" +
                             $"Incoming Request details:\n" +
                             $"Local endpoint: {requestContext.LocalEndPointAbsolutePath}\n" +
@@ -160,27 +163,18 @@ namespace adfsTorBlock
                             $"Resource: {protocolContext.Resource}\n" +
                             $"ClientId: {protocolContext.ClientId}\n" +
                             $"authenticationResult: {authenticationResult}\n";
-                        string ClaimsMessage = "\n\nClaim Details:\n\n";
-                        foreach(var claim in additionalClams)
-                        {
-                            Debug.WriteLine($"Claims: ");
-                            Debug.WriteLine($"{claim.Subject}");
-                            Debug.WriteLine($"{claim.Issuer}");
-                            Debug.WriteLine($"{claim.Value}");
-                            Debug.WriteLine($"{claim.Type}");
-                            ClaimsMessage += $"{claim.Type}\n{claim.Value}";
-                        }
+                        Claim claim1 = new Claim("https://sts.ignastech.cloud/adfs/adfsTorBlock", "HighRisk", ClaimValueTypes.String, ClaimsIdentity.DefaultIssuer);
+                        additionalClams.Add(claim1);
                         adfslogger.WriteAdminLogErrorMessage($"{detailsMessage}");
-                        adfslogger.WriteAdminLogErrorMessage($"{ClaimsMessage}");
                         Debug.WriteLine($"adfsTorBlock:EvaluatePostAuthentication:'{detailsMessage}");
                         if (EvaluateRisk == true)
                         {
-                            Debug.WriteLine($"adfsTorBlock:EvaluatePostAuthentication:Blocking Request");
+                            Debug.WriteLine($"adfsTorBlock:EvaluatePostAuthentication:Evaluating risk to High. Reuqest from TOR network");
                             return Task.FromResult(RiskScore.High);
                         }
                         else
                         {
-                            Debug.WriteLine($"adfsTorBlock:EvaluatePostAuthentication: Not  Request");
+                            Debug.WriteLine($"adfsTorBlock:EvaluatePostAuthentication:Risk not evaluated due to audit mode");
                             return Task.FromResult(RiskScore.NotEvaluated);
                         }
                     }
