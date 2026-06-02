@@ -59,8 +59,8 @@ To set this mode you need to set `Enabled` to 1 and `EvaluateRisk` to 1. If you 
 
 ## Events and logging
 
-The plugin uses standard logging method provided by the Framework which for every error / warning messages issues event `573` to `AD FS/Admin` event log. On [AD FS Error codes](https://adfshelp.microsoft.com/AdfsEventViewer/GetAdfsEventList) you may find the list of the error codes with it's structure.
-Plugin also uses Debug messages that can be viewed by Sysinternal `DebugView` tool.
+The plugin uses standard logging method provided by the Framework which for every error / warning messages issues event `573` to `AD FS/Admin` event log.
+Plugin also uses Debug messages that can be viewed by Sysinternals `DebugView` tool.
 
 ## Todo
 
